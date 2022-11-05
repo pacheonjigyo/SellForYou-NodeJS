@@ -1,0 +1,607 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["orderByRelation", "orderByAggregateGroup", "selectRelationCount"]
+}
+
+generator dbml {
+  provider = "prisma-dbml-generator"
+  output   = "."
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int              @id @default(autoincrement())
+  email        String           @unique @db.VarChar(50)
+  password     String           @db.VarChar(60)
+  state        UserState
+  naverId      String?          @unique @map("naver_id") @db.VarChar(10)
+  kakaoId      String?          @unique @map("kakao_id") @db.VarChar(12)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.DateTime(0)
+  product      Product[]        @relation("productTouser")
+  purchaseLog  PurchaseLog[]    @relation("purchase_logTouser")
+  companyInfo  UserCompanyInfo? @relation("userTouser_company_info")
+  userInfo     UserInfo?        @relation("userTouser_info")
+  userLog      UserLog[]        @relation("userTouser_log")
+  userQuestion UserQuestion[]   @relation("userTouser_question")
+  userShopData UserShopData[]   @relation("userTouser_shop_data")
+  wordTable    WordTable[]      @relation("userToword_table")
+
+  @@map("user")
+}
+
+model UserSetData {
+  id             Int            @id @default(autoincrement())
+  name           String         @db.VarChar(100)
+  setFilePath    String         @map("set_file_path") @db.VarChar(100)
+  userShopDataId Int            @map("user_shop_data_id")
+  userShopData   UserShopData   @relation(fields: [userShopDataId], references: [id])
+  productStore   ProductStore[] @relation("product_storeTouser_set_data")
+
+  @@index([userShopDataId], name: "FK_set_data_user_shop_data_id_user_shop_data_id")
+  @@map("user_set_data")
+}
+
+model UserShopData {
+  id           Int            @id @default(autoincrement())
+  userId       Int            @map("user_id")
+  isActive     Boolean?       @default(true) @map("is_active")
+  siteCode     String         @map("site_code") @db.VarChar(4)
+  siteUserId   String         @map("site_user_id") @db.VarChar(100)
+  siteUserPw   String         @map("site_user_pw") @db.Text
+  siteUseretc1 String         @map("site_useretc1") @db.Text
+  siteUseretc2 String         @map("site_useretc2") @db.Text
+  siteUseretc3 String         @map("site_useretc3") @db.Text
+  siteUseretc4 String         @map("site_useretc4") @db.Text
+  siteUseretc5 String         @map("site_useretc5") @db.Text
+  siteUseretc6 String         @map("site_useretc6") @db.Text
+  createdAt    DateTime       @default(now()) @map("created_at") @db.DateTime(0)
+  modifiedAt   DateTime       @default(now()) @map("modified_at") @db.DateTime(0)
+  etc          String?        @db.Text
+  user         User           @relation("userTouser_shop_data", fields: [userId], references: [id])
+  order        Order[]        @relation("orderTouser_shop_data")
+  productStore ProductStore[] @relation("product_storeTouser_shop_data")
+  userSetData  UserSetData[]
+
+  @@unique([userId, siteCode, siteUserId], name: "UQ_user_shop_data_unique")
+  @@map("user_shop_data")
+}
+
+model Setting {
+  name  String @id @db.VarChar(100)
+  value String @db.Text
+
+  @@map("setting")
+}
+
+model PhoneVerification {
+  id                 Int      @id @default(autoincrement())
+  tel                String   @db.VarChar(15)
+  verificationNumber String   @map("verification_number") @db.Char(6)
+  createdAt          DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  @@map("phone_verification")
+}
+
+model UserInfo {
+  userId                    Int     @unique @map("user_id")
+  phone                     String? @db.VarChar(15)
+  marginRate                Float   @default(0) @map("margin_rate") @db.Float
+  defaultShippingFee        Int     @default(0) @map("default_shipping_fee")
+  refundAccountInfoData     String? @map("refund_account_info_data") @db.Text
+  fixImageTop               String? @map("fix_image_top") @db.TinyText
+  fixImageBottom            String? @map("fix_image_bottom") @db.TinyText
+  cnyRate                   Float   @default(170) @map("cny_rate") @db.Float
+  codeFile                  String? @map("code_file") @db.VarChar(200)
+  productCollectCount       Int     @default(0) @map("product_collect_count")
+  maxProductLimit           Int?    @map("max_product_limit")
+  additionalShippingFeeJeju Int     @default(0) @map("additional_shipping_fee_jeju")
+  asTel                     String? @map("as_tel") @db.VarChar(20)
+  asInformation             String? @map("as_information") @db.VarChar(1000)
+  refundShippingFee         Int     @default(0) @map("refund_shipping_fee")
+  exchangeShippingFee       Int     @default(0) @map("exchange_shipping_fee")
+  user                      User    @relation("userTouser_info", fields: [userId], references: [id])
+
+  @@map("user_info")
+}
+
+model Product {
+  id                 Int                 @id @default(autoincrement())
+  userId             Int?                @map("user_id")
+  adminId            Int?                @map("admin_id")
+  taobaoProductId    Int                 @map("taobao_product_id")
+  productCode        String              @map("product_code") @db.VarChar(50)
+  state              ProductState        @default(COLLECTED)
+  name               String              @db.VarChar(500)
+  price              Int
+  localShippingFee   Float               @map("local_shipping_fee") @db.Float
+  description        String              @db.Text
+  createdAt          DateTime            @default(now()) @map("created_at") @db.DateTime(0)
+  modifiedAt         DateTime            @default(now()) @map("modified_at") @db.DateTime(0)
+  stockUpdatedAt     DateTime            @default(now()) @map("stock_updated_at") @db.DateTime(0)
+  categoryCode       String?             @map("category_code") @db.VarChar(40)
+  siilData           String?             @map("siil_data") @db.Text
+  siilCode           String?             @map("siil_code") @db.VarChar(3)
+  isNameTranslated   Boolean             @default(false) @map("is_name_translated")
+  isImageTranslated  Boolean             @default(false) @map("is_image_translated")
+  imageThumbnailData String              @map("image_thumbnail_data") @db.Text
+  marginRate         Float               @default(0) @map("margin_rate") @db.Float
+  cnyRate            Float               @default(170) @map("cny_rate") @db.Float
+  shippingFee        Int                 @default(0) @map("shipping_fee")
+  admin              Admin?              @relation("adminToproduct", fields: [adminId], references: [id])
+  category           Category?           @relation("categoryToproduct", fields: [categoryCode], references: [code])
+  taobaoProduct      TaobaoProduct       @relation("productTotaobao_product", fields: [taobaoProductId], references: [id])
+  user               User?               @relation("productTouser", fields: [userId], references: [id])
+  order              Order[]             @relation("orderToproduct")
+  productOption      ProductOption[]
+  productOptionName  ProductOptionName[] @relation("productToproduct_option_name")
+  productStore       ProductStore[]      @relation("productToproduct_store")
+
+  @@unique([userId, taobaoProductId], name: "UQ_user_id_taobao_product_id")
+  @@index([adminId], name: "FK_product_admin_id_admin_id")
+  @@index([categoryCode], name: "FK_product_category_code_category_code")
+  @@index([taobaoProductId], name: "FK_product_taobao_product_id_taobao_product_id")
+  @@map("product")
+}
+
+model ProductOption {
+  id             Int                 @id @default(autoincrement())
+  productId      Int                 @map("product_id")
+  optionValue1Id Int                 @map("option_value1_id")
+  optionValue2Id Int?                @map("option_value2_id")
+  optionValue3Id Int?                @map("option_value3_id")
+  isActive       Boolean             @default(true) @map("is_active")
+  taobaoSkuId    String              @map("taobao_sku_id") @db.VarChar(15)
+  priceCny       Float               @map("price_cny") @db.Float
+  price          Int
+  stock          Int?
+  optionString   String              @map("option_string") @db.VarChar(10)
+  optionValue1   ProductOptionValue  @relation("product_option_option_value1_idToproduct_option_value", fields: [optionValue1Id], references: [id])
+  optionValue2   ProductOptionValue? @relation("product_option_option_value2_idToproduct_option_value", fields: [optionValue2Id], references: [id])
+  optionValue3   ProductOptionValue? @relation("product_option_option_value3_idToproduct_option_value", fields: [optionValue3Id], references: [id])
+  product        Product             @relation(fields: [productId], references: [id])
+
+  @@unique([productId, taobaoSkuId], name: "UQ_product_id_sku_id")
+  @@unique([optionValue1Id, optionValue2Id, optionValue3Id], name: "UQ_product_option")
+  @@index([optionValue2Id], name: "FK_product_option_option_value2_id_product_option_value_id")
+  @@index([optionValue3Id], name: "FK_product_option_option_value3_id_product_option_value_id")
+  @@map("product_option")
+}
+
+model TaobaoProduct {
+  id               Int       @id @default(autoincrement())
+  taobaoNumIid     String    @unique @map("taobao_num_iid") @db.VarChar(15)
+  name             String    @db.VarChar(200)
+  imageThumbnail   String    @map("image_thumbnail") @db.Text
+  price            Float     @db.Float
+  brand            String    @db.Text
+  taobaoBrandId    String?   @map("taobao_brand_id") @db.VarChar(15)
+  taobaoCategoryId String    @map("taobao_category_id") @db.VarChar(12)
+  originalData     String    @map("original_data") @db.LongText
+  videoUrl         String?   @map("video_url") @db.Text
+  translateData    String?   @map("translate_data") @db.LongText
+  createdAt        DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  modifiedAt       DateTime  @default(now()) @map("modified_at") @db.DateTime(0)
+  product          Product[] @relation("productTotaobao_product")
+
+  @@map("taobao_product")
+}
+
+model UserCompanyInfo {
+  userId    Int    @id @map("user_id")
+  name      String @db.VarChar(40)
+  code      String @db.VarChar(15)
+  ownerName String @map("owner_name") @db.VarChar(45)
+  user      User   @relation("userTouser_company_info", fields: [userId], references: [id])
+
+  @@map("user_company_info")
+}
+
+model ProductOptionName {
+  id                 Int                  @id @default(autoincrement())
+  productId          Int                  @map("product_id")
+  order              Int                  @db.TinyInt
+  name               String               @db.VarChar(200)
+  taobaoPid          String               @map("taobao_pid") @db.VarChar(20)
+  isNameTranslated   Boolean              @default(false) @map("is_name_translated")
+  hasImage           Boolean              @map("has_image")
+  product            Product              @relation("productToproduct_option_name", fields: [productId], references: [id])
+  productOptionValue ProductOptionValue[]
+
+  @@index([productId], name: "FK_product_option_name_product_id_product_id")
+  @@map("product_option_name")
+}
+
+model ProductOptionValue {
+  id                  Int               @id @default(autoincrement())
+  productOptionNameId Int               @map("product_option_name_id")
+  optionNameOrder     Int               @map("option_name_order") @db.TinyInt
+  name                String            @db.VarChar(200)
+  taobaoVid           String            @map("taobao_vid") @db.VarChar(20)
+  image               String?           @db.VarChar(500)
+  number              Int               @db.TinyInt
+  isNameTranslated    Boolean           @default(false) @map("is_name_translated")
+  productOptionName   ProductOptionName @relation(fields: [productOptionNameId], references: [id])
+  productOption1      ProductOption[]   @relation("product_option_option_value1_idToproduct_option_value")
+  productOption2      ProductOption[]   @relation("product_option_option_value2_idToproduct_option_value")
+  productOption3      ProductOption[]   @relation("product_option_option_value3_idToproduct_option_value")
+
+  @@index([productOptionNameId], name: "FK_product_option_value_pon_id_product_option_name_id")
+  @@map("product_option_value")
+}
+
+model Category {
+  id       Int       @id @default(autoincrement())
+  code     String    @unique @db.VarChar(40)
+  c1       String    @db.VarChar(8)
+  c2       String    @db.VarChar(8)
+  c3       String    @db.VarChar(8)
+  c4       String    @db.VarChar(8)
+  c1Name   String    @map("c1_name") @db.VarChar(20)
+  c2Name   String    @map("c2_name") @db.VarChar(20)
+  c3Name   String    @map("c3_name") @db.VarChar(20)
+  c4Name   String    @map("c4_name") @db.VarChar(20)
+  siilCode String    @map("siil_code") @db.VarChar(3)
+  a077Code String    @unique @map("a077_code") @db.VarChar(8)
+  b378Code Int       @default(0) @map("b378_code")
+  product  Product[] @relation("categoryToproduct")
+
+  @@map("category")
+}
+
+model CategoryStore {
+  id             Int                @id @default(autoincrement())
+  number         Int                @unique
+  acode          String             @db.VarChar(45)
+  pcode          String             @db.Char(11)
+  ccode          String             @db.VarChar(45)
+  dc1            String             @db.VarChar(20)
+  dc2            String             @db.VarChar(20)
+  dc3            String             @db.VarChar(20)
+  dc4            String             @db.VarChar(20)
+  dc1Name        String             @map("dc1_name") @db.VarChar(40)
+  dc2Name        String             @map("dc2_name") @db.VarChar(40)
+  dc3Name        String             @map("dc3_name") @db.VarChar(40)
+  dc4Name        String             @map("dc4_name") @db.VarChar(40)
+  state          CategoryStoreState
+  cateStatePdate DateTime?          @map("cate_state_pdate") @db.DateTime(0)
+  cateStateCdate DateTime?          @map("cate_state_cdate") @db.DateTime(0)
+
+  @@map("category_store")
+}
+
+model ProductStore {
+  id                Int               @id @default(autoincrement())
+  productId         Int               @map("product_id")
+  userSetDataId     Int?              @map("user_set_data_id")
+  userShopDataId    Int               @map("user_shop_data_id")
+  state             Int               @db.TinyInt
+  storeProductId    String?           @map("store_product_id") @db.VarChar(100)
+  etcVendorItemId   String?           @map("etc_vendor_item_id") @db.VarChar(20)
+  product           Product           @relation("productToproduct_store", fields: [productId], references: [id])
+  productStoreState ProductStoreState @relation("product_storeToproduct_store_state", fields: [state], references: [id])
+  userSetData       UserSetData?      @relation("product_storeTouser_set_data", fields: [userSetDataId], references: [id])
+  userShopData      UserShopData      @relation("product_storeTouser_shop_data", fields: [userShopDataId], references: [id])
+  productStoreLog   ProductStoreLog[] @relation("product_storeToproduct_store_log")
+
+  @@index([productId], name: "FK_product_store_product_id_product_id")
+  @@index([state], name: "FK_product_store_state_product_store_state_id")
+  @@index([userSetDataId], name: "FK_product_store_user_set_data_id_user_set_data_id")
+  @@index([userShopDataId], name: "FK_product_store_user_shop_data_id_user_shop_data_id")
+  @@map("product_store")
+}
+
+model ProductStoreState {
+  id              Int               @id @db.TinyInt
+  name            String            @unique @db.VarChar(20)
+  description     String            @unique @db.VarChar(20)
+  productStore    ProductStore[]    @relation("product_storeToproduct_store_state")
+  productStoreLog ProductStoreLog[] @relation("product_store_logToproduct_store_state")
+
+  @@map("product_store_state")
+}
+
+model ProductStoreLog {
+  id                Int                        @id @default(autoincrement())
+  productStoreId    Int                        @map("product_store_id")
+  jobId             String                     @map("job_id") @db.VarChar(12)
+  destState         Int                        @map("dest_state") @db.TinyInt
+  uploadState       ProductStoreLogUploadState @default(WAIT) @map("upload_state")
+  errorMessage      String                     @default("") @map("error_message") @db.Text
+  createdAt         DateTime                   @default(now()) @map("created_at") @db.DateTime(0)
+  modifiedAt        DateTime                   @default(now()) @map("modified_at") @db.DateTime(0)
+  productStoreState ProductStoreState          @relation("product_store_logToproduct_store_state", fields: [destState], references: [id])
+  productStore      ProductStore               @relation("product_storeToproduct_store_log", fields: [productStoreId], references: [id])
+
+  @@index([destState], name: "FK_product_store_log_dest_state_product_store_state_id")
+  @@index([productStoreId], name: "FK_product_store_log_product_store_id_product_store_id")
+  @@map("product_store_log")
+}
+
+model Order {
+  id                 String       @id @db.VarChar(15)
+  userShopDataId     Int          @map("user_shop_data_id")
+  state              OrderState   @default(NEW)
+  orderProductNumber String       @map("order_product_number") @db.VarChar(40)
+  storeProductId     String       @map("store_product_id") @db.VarChar(100)
+  orderState         Int          @map("order_state") @db.TinyInt
+  productName        String       @map("product_name") @db.VarChar(150)
+  optionName         String       @map("option_name") @db.VarChar(100)
+  quantity           Int          @db.SmallInt
+  productId          Int?         @map("product_id")
+  payPrice           Int          @map("pay_price")
+  shippingType       String       @map("shipping_type") @db.VarChar(5)
+  shippingFee        Int          @map("shipping_fee")
+  buyerName          String       @map("buyer_name") @db.VarChar(20)
+  receiverName       String       @map("receiver_name") @db.VarChar(20)
+  customId           String       @map("custom_id") @db.VarChar(15)
+  isCustomIdValid    Boolean?     @map("is_custom_id_valid")
+  orderedAt          DateTime     @map("ordered_at") @db.DateTime(0)
+  deliveryExpiredAt  DateTime     @map("delivery_expired_at") @db.DateTime(0)
+  originalData       String       @map("original_data") @db.Text
+  taobaoOrderId      Int?         @map("taobao_order_id")
+  sellerProductCode  String       @map("seller_product_code") @db.VarChar(100)
+  product            Product?     @relation("orderToproduct", fields: [productId], references: [id])
+  taobaoOrder        TaobaoOrder? @relation("orderTotaobao_order", fields: [taobaoOrderId], references: [id])
+  userShopData       UserShopData @relation("orderTouser_shop_data", fields: [userShopDataId], references: [id])
+
+  @@unique([orderProductNumber, userShopDataId], name: "UQ_order_number_data")
+  @@index([productId], name: "FK_order_product_id_product_id")
+  @@index([taobaoOrderId], name: "FK_order_taobao_order_id_taobao_order_id")
+  @@index([userShopDataId], name: "FK_order_user_shop_data_id_user_shop_data_id")
+  @@index([orderProductNumber], name: "order_order_product_number_index")
+  @@map("order")
+}
+
+model UserLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  title       String   @default("") @db.Text
+  payloadData String   @map("payload_data") @db.Text
+  isRead      Boolean  @default(false) @map("is_read")
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  user        User     @relation("userTouser_log", fields: [userId], references: [id])
+
+  @@index([userId], name: "FK_user_log_user_id_user_id")
+  @@map("user_log")
+}
+
+model PlanInfo {
+  id                        Int     @id @default(autoincrement())
+  planLevel                 Int?    @map("plan_level") @db.TinyInt
+  name                      String  @db.VarChar(50)
+  description               String  @db.Text
+  month                     Int     @db.TinyInt
+  price                     Int
+  externalFeatureVariableId String? @map("external_feature_variable_id") @db.VarChar(50)
+  isActive                  Boolean @default(true) @map("is_active")
+
+  @@map("plan_info")
+}
+
+model PurchaseLog {
+  id          Int              @id @default(autoincrement())
+  userId      Int              @map("user_id")
+  payAmount   Int              @map("pay_amount")
+  payId       String?          @unique @map("pay_id") @db.VarChar(100)
+  state       PurchaseLogState
+  planInfo    String           @map("plan_info") @db.LongText
+  type        PurchaseLogType
+  purchasedAt DateTime         @default(now()) @map("purchased_at") @db.DateTime(0)
+  expiredAt   DateTime         @map("expired_at") @db.DateTime(0)
+  user        User             @relation("purchase_logTouser", fields: [userId], references: [id])
+
+  @@index([userId], name: "FK_purchase_log_user_id_user_id")
+  @@map("purchase_log")
+}
+
+model Admin {
+  id        Int        @id @default(autoincrement())
+  loginId   String     @unique @map("login_id") @db.VarChar(50)
+  password  String     @db.VarChar(60)
+  state     AdminState
+  createdAt DateTime   @default(now()) @map("created_at") @db.DateTime(0)
+  product   Product[]  @relation("adminToproduct")
+
+  @@map("admin")
+}
+
+model TaobaoOrder {
+  id              Int              @id @default(autoincrement())
+  taobaoId        String           @map("taobao_id") @db.VarChar(50)
+  taobaoOrderNum  String           @map("taobao_order_num") @db.VarChar(30)
+  state           TaobaoOrderState
+  logisticCompany String?          @map("logistic_company") @db.VarChar(20)
+  waybill         String?          @db.VarChar(100)
+  buyerMessage    String?          @map("buyer_message") @db.VarChar(200)
+  realMoney       Float?           @map("real_money") @db.Float
+  originalData    String           @map("original_data") @db.LongText
+  createdAt       DateTime         @default(now()) @map("created_at") @db.DateTime(0)
+  modifiedAt      DateTime         @default(now()) @map("modified_at") @db.DateTime(0)
+  order           Order[]          @relation("orderTotaobao_order")
+
+  @@map("taobao_order")
+}
+
+model TaobaoOrderQueue {
+  id            Int       @id @default(autoincrement())
+  taobaoId      String    @map("taobao_id") @db.VarChar(50)
+  type          Int       @db.TinyInt
+  taobaoOrderId Int?      @map("taobao_order_id")
+  queryType     String?   @map("query_type") @db.VarChar(10)
+  page          Int?
+  errorMsg      String?   @map("error_msg") @db.Text
+  createdAt     DateTime? @default(now()) @map("created_at") @db.DateTime(0)
+
+  @@map("taobao_order_queue")
+}
+
+model withdraw {
+  id         Int      @id @default(autoincrement())
+  email      String   @db.VarChar(50)
+  naverId    String?  @map("naver_id") @db.VarChar(10)
+  kakaoId    String?  @map("kakao_id") @db.VarChar(12)
+  withdrawAt DateTime @default(now()) @map("withdraw_at") @db.DateTime(0)
+}
+
+model Faq {
+  id          Int         @id @default(autoincrement())
+  categoryId  Int         @map("category_id") @db.TinyInt
+  title       String      @db.VarChar(50)
+  content     String      @db.LongText
+  createdAt   DateTime    @default(now()) @map("created_at")
+  FaqCategory FaqCategory @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId], name: "FK_faq_category_id_faq_category_id")
+  @@map("faq")
+}
+
+model FaqCategory {
+  id       Int     @id @default(autoincrement()) @db.TinyInt
+  name     String  @db.VarChar(30)
+  order    Int     @db.TinyInt
+  isActive Boolean @default(true) @map("is_active")
+  faq      Faq[]
+
+  @@map("faq_category")
+}
+
+model Notice {
+  id             Int      @id @default(autoincrement())
+  title          String   @db.VarChar(200)
+  content        String   @db.LongText
+  attachmentFile String?  @map("attachment_file") @db.Text
+  isVisible      Boolean  @default(true) @map("is_visible")
+  viewCount      Int      @default(0) @map("view_count")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("notice")
+}
+
+model WordTable {
+  id          Int     @id @default(autoincrement())
+  userId      Int     @map("user_id")
+  findWord    String  @map("find_word") @db.VarChar(50)
+  replaceWord String? @map("replace_word") @db.VarChar(50)
+  user        User    @relation("userToword_table", fields: [userId], references: [id])
+
+  @@unique([userId, findWord], name: "UQ_word_table_word")
+  @@map("word_table")
+}
+
+model UserQuestion {
+  id             Int       @id @default(autoincrement())
+  userId         Int       @map("user_id")
+  title          String    @db.VarChar(50)
+  content        String    @db.LongText
+  attachmentFile String?   @map("attachment_file") @db.Text
+  answer         String?   @db.LongText
+  isActive       Boolean   @default(true) @map("is_active")
+  answeredAt     DateTime? @map("answered_at") @db.DateTime(0)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  user           User      @relation("userTouser_question", fields: [userId], references: [id])
+
+  @@index([userId], name: "FK_user_question_user_id_user_id")
+  @@map("user_question")
+}
+
+model TaobaoProductTranslateRequest {
+  id             Int      @id @default(autoincrement())
+  userId         Int?     @map("user_id")
+  adminId        Int?     @map("admin_id")
+  taobaoIidArray String   @map("taobao_iid_array") @db.Text
+  categoryCode   String?  @map("category_code") @db.VarChar(40)
+  siilCode       String?  @map("siil_code") @db.VarChar(3)
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  isDone         Boolean  @default(false) @map("is_done")
+
+  @@map("taobao_product_translate_request")
+}
+
+model CategoryNameMatch {
+  code   String @id @db.VarChar(8)
+  depth  Int    @db.TinyInt
+  number Int
+  name   String @db.VarChar(20)
+
+  @@map("category_name_match")
+}
+
+enum UserState {
+  ACTIVE
+  DELETED
+
+   @@map("user_state")
+}
+
+enum ProductState {
+  COLLECTED
+  ON_SALE
+  UPLOAD_WAITING
+  UPLOAD_FAILED
+  SELL_DONE
+
+   @@map("product_state")
+}
+
+enum CategoryStoreState {
+  NORMAL
+  DELETE
+  CHANGE
+
+   @@map("category_store_state")
+}
+
+enum ProductStoreLogUploadState {
+  WAIT
+  SUCCESS
+  FAIL
+  CANCEL
+  ON_PROGRESS
+
+   @@map("product_store_log_upload_state")
+}
+
+enum PurchaseLogType {
+  PLAN
+  IMAGE_TRANSLATE
+  STOCK
+
+   @@map("purchase_log_type")
+}
+
+enum PurchaseLogState {
+  WAIT_PAYMENT
+  WAIT_DEPOSIT
+  ACTIVE
+  ENDED
+  REFUNDED
+
+   @@map("purchase_log_state")
+}
+
+enum AdminState {
+  ACTIVE
+  DELETED
+
+   @@map("admin_state")
+}
+
+enum TaobaoOrderState {
+  WAIT_SEND
+  WAIT_CONFIRM
+  DONE
+
+   @@map("taobao_order_state")
+}
+
+enum OrderState {
+  NEW
+  ORDERED
+  CLAIMED
+
+   @@map("order_state")
+}
